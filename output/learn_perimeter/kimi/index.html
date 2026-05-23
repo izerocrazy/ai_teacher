@@ -1,0 +1,1260 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>交互式测量教学工具 - 精准测量版</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+        }
+        
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 20px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        /* 顶部工具栏 */
+        .toolbar {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+            background: white;
+            padding: 15px 25px;
+            border-radius: 50px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        
+        .tool-btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .tool-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        
+        .tool-btn.active {
+            transform: scale(1.05);
+        }
+        
+        .brush-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .brush-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .ruler-btn {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+        }
+        
+        .ruler-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .upload-btn {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+        }
+        
+        .reset-btn {
+            background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+            color: white;
+        }
+        
+        /* 主容器 */
+        .main-container {
+            display: flex;
+            gap: 20px;
+            align-items: flex-start;
+        }
+        
+        /* 画布容器 */
+        .canvas-wrapper {
+            position: relative;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+            transition: transform 0.5s ease;
+        }
+        
+        #mainCanvas {
+            display: block;
+            cursor: crosshair;
+            background-image: 
+                linear-gradient(rgba(200,200,200,0.3) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(200,200,200,0.3) 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+        
+        /* 右侧信息面板 */
+        .info-panel {
+            width: 280px;
+            background: white;
+            border-radius: 20px;
+            padding: 25px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+        }
+        
+        .info-section {
+            margin-bottom: 25px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+        
+        .info-section:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+        }
+        
+        .info-title {
+            font-size: 14px;
+            color: #7f8c8d;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 10px;
+        }
+        
+        .status-badge {
+            display: inline-block;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+        
+        .status-drawing {
+            background: #e3f2fd;
+            color: #1976d2;
+            animation: pulse 2s infinite;
+        }
+        
+        .status-converting {
+            background: #fff3e0;
+            color: #f57c00;
+        }
+        
+        .status-measuring {
+            background: #e8f5e9;
+            color: #388e3c;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+        
+        .measurement-display {
+            font-size: 32px;
+            font-weight: 700;
+            color: #2c3e50;
+            margin: 10px 0;
+        }
+        
+        .measurement-unit {
+            font-size: 16px;
+            color: #7f8c8d;
+            margin-left: 5px;
+        }
+        
+        .hint-text {
+            font-size: 13px;
+            color: #95a5a6;
+            line-height: 1.6;
+            margin-top: 10px;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background: #ecf0f1;
+            border-radius: 3px;
+            overflow: hidden;
+            margin-top: 15px;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+        
+        /* 操作提示 */
+        .toast {
+            position: fixed;
+            top: 100px;
+            left: 50%;
+            transform: translateX(-50%) translateY(-20px);
+            background: rgba(0,0,0,0.8);
+            color: white;
+            padding: 12px 24px;
+            border-radius: 30px;
+            font-size: 14px;
+            opacity: 0;
+            transition: all 0.3s ease;
+            pointer-events: none;
+            z-index: 1000;
+        }
+        
+        .toast.show {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
+        
+        /* 吸附提示 */
+        .snap-hint {
+            position: absolute;
+            background: rgba(46, 204, 113, 0.9);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 12px;
+            font-weight: 600;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            z-index: 100;
+        }
+        
+        .snap-hint.show {
+            opacity: 1;
+        }
+        
+        .hidden-input {
+            display: none;
+        }
+        
+        /* 响应式 */
+        @media (max-width: 1100px) {
+            .main-container {
+                flex-direction: column;
+                align-items: center;
+            }
+            
+            .info-panel {
+                width: 100%;
+                max-width: 800px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <h1>🍃 交互式测量教学工具 - 精准测量版</h1>
+    
+    <div class="toolbar">
+        <button class="tool-btn brush-btn active" id="brushTool" onclick="app.setTool('brush')">
+            ✏️ 画笔工具
+        </button>
+        <button class="tool-btn ruler-btn" id="rulerTool" onclick="app.setTool('ruler')" disabled>
+            📏 标尺工具
+        </button>
+        <button class="tool-btn upload-btn" onclick="document.getElementById('fileInput').click()">
+            📤 上传图片
+        </button>
+        <button class="tool-btn reset-btn" onclick="app.reset()">
+            🔄 重新开始
+        </button>
+        <input type="file" id="fileInput" class="hidden-input" accept="image/*" onchange="app.handleFileUpload(event)">
+    </div>
+    
+    <div class="main-container">
+        <div class="canvas-wrapper" id="canvasWrapper">
+            <canvas id="mainCanvas" width="800" height="600"></canvas>
+            <div class="snap-hint" id="snapHint">已吸附对齐</div>
+        </div>
+        
+        <div class="info-panel">
+            <div class="info-section">
+                <div class="info-title">当前状态</div>
+                <span class="status-badge status-drawing" id="statusBadge">描边中</span>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill"></div>
+                </div>
+            </div>
+            
+            <div class="info-section">
+                <div class="info-title">测量数据</div>
+                <div style="font-size: 14px; color: #7f8c8d; margin-bottom: 10px;">
+                    被测线条长度: <strong id="lineLength" style="color: #e74c3c;">0.0 px</strong>
+                </div>
+                <div style="font-size: 14px; color: #7f8c8d;">
+                    标尺测量结果: <strong id="rulerResult" style="color: #27ae60;">未对齐</strong>
+                </div>
+                <div class="hint-text" id="measureHint">
+                    使用画笔沿树叶轮廓描边，收口后自动进入测量模式
+                </div>
+            </div>
+            
+            <div class="info-section">
+                <div class="info-title">操作指南</div>
+                <div class="hint-text">
+                    <strong>阶段1：</strong>选择画笔，按住鼠标沿树叶轮廓描绘<br><br>
+                    <strong>阶段2：</strong>当光标靠近起点（出现绿色圆圈），松开鼠标自动收口<br><br>
+                    <strong>阶段3：</strong>标尺自动吸附到线条起点，拖拽可移动，结果直接显示在标尺上<br><br>
+                    <strong>提示：</strong>标尺长度始终大于被测线条，确保完整测量
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="toast" id="toast"></div>
+
+    <script>
+        /**
+         * 测量应用主类 - 精准测量版
+         * 优化：水平直线、画布缩放、标尺吸附、结果直显
+         */
+        class MeasurementApp {
+            constructor() {
+                this.canvas = document.getElementById('mainCanvas');
+                this.ctx = this.canvas.getContext('2d');
+                this.canvasWrapper = document.getElementById('canvasWrapper');
+                
+                // 状态管理
+                this.currentTool = 'brush';
+                this.appState = 'drawing';   // 'drawing' | 'converting' | 'measuring'
+                
+                // 描边数据
+                this.pathPoints = [];
+                this.isDrawing = false;
+                this.startPoint = null;
+                this.closedPath = false;
+                
+                // 转换后数据 - 水平直线
+                this.straightLine = {
+                    startX: 0,
+                    endX: 0,
+                    y: 0,
+                    length: 0,
+                    targetY: 450  // 底部固定位置
+                };
+                
+                // 标尺数据 - 始终水平，长度大于线条
+                this.ruler = {
+                    x: 400,
+                    y: 450,
+                    width: 300,    // 默认宽度，会根据线条长度调整
+                    height: 50,
+                    isDragging: false,
+                    dragOffset: { x: 0, y: 0 },
+                    isSnapped: false,  // 是否已吸附
+                    snapTarget: 'start' // 'start' | 'end' | 'center'
+                };
+                
+                // 图片数据
+                this.leafImage = new Image();
+                this.imageLoaded = false;
+                
+                // 动画相关
+                this.animationId = null;
+                this.conversionProgress = 0;
+                this.canvasScale = 1;
+                
+                // 常量
+                this.CLOSE_THRESHOLD = 15;
+                this.RULER_EXTRA_LENGTH = 50; // 标尺比线条多出的长度
+                this.SNAP_THRESHOLD = 30;     // 吸附阈值
+                
+                this.init();
+            }
+            
+            init() {
+                this.setupEventListeners();
+                this.loadDefaultImage();
+                this.render();
+            }
+            
+            /**
+             * 加载默认树叶图片
+             */
+            loadDefaultImage() {
+                this.leafImage.crossOrigin = 'anonymous';
+                this.leafImage.onload = () => {
+                    this.imageLoaded = true;
+                    this.render();
+                };
+                this.leafImage.onerror = () => {
+                    this.drawDefaultLeaf();
+                };
+                
+                // 使用SVG树叶
+                this.leafImage.src = 'data:image/svg+xml;base64,' + btoa(`
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+                        <path d="M100 180 Q100 140 60 120 Q20 100 20 60 Q20 20 60 20 Q80 20 100 40 Q120 20 140 20 Q180 20 180 60 Q180 100 140 120 Q100 140 100 180" 
+                              fill="#4CAF50" stroke="#2E7D32" stroke-width="3"/>
+                        <path d="M100 180 L100 100" stroke="#2E7D32" stroke-width="2"/>
+                    </svg>
+                `);
+            }
+            
+            /**
+             * 绘制默认树叶
+             */
+            drawDefaultLeaf() {
+                this.ctx.save();
+                this.ctx.translate(400, 300);
+                this.ctx.scale(1.5, 1.5);
+                
+                this.ctx.beginPath();
+                this.ctx.moveTo(0, 100);
+                this.ctx.quadraticCurveTo(0, 60, -40, 40);
+                this.ctx.quadraticCurveTo(-80, 20, -80, -20);
+                this.ctx.quadraticCurveTo(-80, -60, -40, -60);
+                this.ctx.quadraticCurveTo(-20, -60, 0, -40);
+                this.ctx.quadraticCurveTo(20, -60, 40, -60);
+                this.ctx.quadraticCurveTo(80, -60, 80, -20);
+                this.ctx.quadraticCurveTo(80, 20, 40, 40);
+                this.ctx.quadraticCurveTo(0, 60, 0, 100);
+                this.ctx.closePath();
+                
+                this.ctx.fillStyle = 'rgba(76, 175, 80, 0.3)';
+                this.ctx.fill();
+                this.ctx.strokeStyle = '#2E7D32';
+                this.ctx.lineWidth = 2;
+                this.ctx.stroke();
+                
+                this.ctx.restore();
+                this.imageLoaded = true;
+            }
+            
+            /**
+             * 设置事件监听
+             */
+            setupEventListeners() {
+                this.canvas.addEventListener('mousedown', (e) => this.handleMouseDown(e));
+                this.canvas.addEventListener('mousemove', (e) => this.handleMouseMove(e));
+                this.canvas.addEventListener('mouseup', (e) => this.handleMouseUp(e));
+                this.canvas.addEventListener('mouseleave', (e) => this.handleMouseUp(e));
+                
+                // 滚轮缩放画布（仅在测量模式）
+                this.canvas.addEventListener('wheel', (e) => {
+                    if (this.appState === 'measuring') {
+                        e.preventDefault();
+                        const delta = e.deltaY > 0 ? -0.1 : 0.1;
+                        this.canvasScale = Math.max(0.5, Math.min(2, this.canvasScale + delta));
+                        this.canvasWrapper.style.transform = `scale(${this.canvasScale})`;
+                    }
+                });
+                
+                document.addEventListener('keydown', (e) => {
+                    if (e.key === 'Escape' && this.isDrawing) {
+                        this.cancelDrawing();
+                    }
+                    if (e.ctrlKey && e.key === 'z') {
+                        e.preventDefault();
+                        this.reset();
+                    }
+                });
+            }
+            
+            getMousePos(e) {
+                const rect = this.canvas.getBoundingClientRect();
+                return {
+                    x: (e.clientX - rect.left) / this.canvasScale,
+                    y: (e.clientY - rect.top) / this.canvasScale
+                };
+            }
+            
+            distance(p1, p2) {
+                return Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2));
+            }
+            
+            handleMouseDown(e) {
+                const pos = this.getMousePos(e);
+                
+                if (this.appState === 'drawing' && this.currentTool === 'brush') {
+                    this.isDrawing = true;
+                    this.pathPoints = [pos];
+                    this.startPoint = pos;
+                    this.closedPath = false;
+                    this.showToast('开始描边，沿树叶轮廓绘制，回到起点自动收口');
+                } else if (this.appState === 'measuring' && this.currentTool === 'ruler') {
+                    if (this.isPointOnRuler(pos)) {
+                        this.ruler.isDragging = true;
+                        this.ruler.dragOffset = {
+                            x: pos.x - this.ruler.x,
+                            y: pos.y - this.ruler.y
+                        };
+                        this.ruler.isSnapped = false; // 开始拖拽时解除吸附
+                        this.hideSnapHint();
+                    }
+                }
+            }
+            
+            handleMouseMove(e) {
+                const pos = this.getMousePos(e);
+                
+                if (this.appState === 'drawing' && this.isDrawing) {
+                    this.pathPoints.push(pos);
+                    
+                    if (this.pathPoints.length > 10) {
+                        const distToStart = this.distance(pos, this.startPoint);
+                        if (distToStart < this.CLOSE_THRESHOLD) {
+                            this.canvas.style.cursor = 'pointer';
+                        } else {
+                            this.canvas.style.cursor = 'crosshair';
+                        }
+                    }
+                    
+                    this.render();
+                } else if (this.appState === 'measuring' && this.ruler.isDragging) {
+                    this.ruler.x = pos.x - this.ruler.dragOffset.x;
+                    this.ruler.y = pos.y - this.ruler.dragOffset.y;
+                    
+                    // 检查吸附
+                    this.checkSnap();
+                    this.checkMeasurement();
+                    this.render();
+                } else if (this.appState === 'measuring') {
+                    if (this.isPointOnRuler(pos)) {
+                        this.canvas.style.cursor = 'move';
+                    } else {
+                        this.canvas.style.cursor = 'default';
+                    }
+                }
+            }
+            
+            handleMouseUp(e) {
+                if (this.appState === 'drawing' && this.isDrawing) {
+                    const pos = this.getMousePos(e);
+                    
+                    if (this.pathPoints.length > 10) {
+                        const distToStart = this.distance(pos, this.startPoint);
+                        if (distToStart < this.CLOSE_THRESHOLD) {
+                            this.pathPoints.push(this.startPoint);
+                            this.closedPath = true;
+                            this.isDrawing = false;
+                            this.showToast('收口成功！正在转换...');
+                            this.startConversion();
+                        } else {
+                            this.showToast('未回到起点，绘制取消');
+                            this.cancelDrawing();
+                        }
+                    } else {
+                        this.cancelDrawing();
+                    }
+                } else if (this.appState === 'measuring') {
+                    this.ruler.isDragging = false;
+                    // 松开后检查吸附
+                    this.checkSnap();
+                }
+            }
+            
+            cancelDrawing() {
+                this.isDrawing = false;
+                this.pathPoints = [];
+                this.startPoint = null;
+                this.canvas.style.cursor = 'crosshair';
+                this.render();
+            }
+            
+            /**
+             * 开始转换动画 - 生成水平直线
+             */
+            startConversion() {
+                this.appState = 'converting';
+                this.updateStatus('converting');
+                
+                // 计算路径总长度
+                let totalLength = 0;
+                for (let i = 1; i < this.pathPoints.length; i++) {
+                    totalLength += this.distance(this.pathPoints[i-1], this.pathPoints[i]);
+                }
+                
+                // 设置水平直线参数 - 确保在画面内且不超界
+                const maxLineWidth = 700; // 最大允许长度
+                const actualLength = Math.min(totalLength, maxLineWidth);
+                
+                // 居中放置
+                this.straightLine = {
+                    startX: (800 - actualLength) / 2,
+                    endX: (800 + actualLength) / 2,
+                    y: 300, // 初始Y（动画起始位置）
+                    length: actualLength,
+                    targetY: 450 // 最终到底部
+                };
+                
+                // 设置标尺参数 - 必须大于线条
+                this.ruler.width = actualLength + this.RULER_EXTRA_LENGTH * 2;
+                this.ruler.x = 400;
+                this.ruler.y = 450;
+                
+                // 开始动画
+                this.conversionProgress = 0;
+                this.animateConversion();
+            }
+            
+            /**
+             * 转换动画 - 包含画布缩放
+             */
+            animateConversion() {
+                const duration = 2000;
+                const startTime = Date.now();
+                
+                const animate = () => {
+                    const elapsed = Date.now() - startTime;
+                    this.conversionProgress = Math.min(elapsed / duration, 1);
+                    const easeProgress = this.easeInOutCubic(this.conversionProgress);
+                    
+                    // 阶段1: 路径变形为直线 (0-60%)
+                    // 阶段2: 直线移动到底部 (60-80%)
+                    // 阶段3: 画布缩放适应 (80-100%)
+                    
+                    if (this.conversionProgress < 0.6) {
+                        const phaseProgress = this.conversionProgress / 0.6;
+                        this.renderPathToLine(phaseProgress);
+                    } else if (this.conversionProgress < 0.8) {
+                        const phaseProgress = (this.conversionProgress - 0.6) / 0.2;
+                        this.renderLineMoving(phaseProgress);
+                    } else {
+                        const phaseProgress = (this.conversionProgress - 0.8) / 0.2;
+                        this.canvasScale = 1 + (0.2 * phaseProgress); // 轻微放大确保可见
+                        this.canvasWrapper.style.transform = `scale(${this.canvasScale})`;
+                        this.renderLineAtBottom();
+                    }
+                    
+                    if (this.conversionProgress < 1) {
+                        this.animationId = requestAnimationFrame(animate);
+                    } else {
+                        this.finishConversion();
+                    }
+                };
+                
+                animate();
+            }
+            
+            easeInOutCubic(t) {
+                return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+            }
+            
+            /**
+             * 渲染路径变形为直线
+             */
+            renderPathToLine(progress) {
+                this.ctx.clearRect(0, 0, 800, 600);
+                this.drawGrid();
+                
+                // 绘制原路径（渐隐）
+                this.ctx.save();
+                this.ctx.globalAlpha = 1 - progress;
+                this.drawImage();
+                this.drawRawPath();
+                this.ctx.restore();
+                
+                // 绘制水平直线（渐显）
+                this.ctx.save();
+                this.ctx.globalAlpha = progress;
+                
+                const currentY = 300;
+                const lineWidth = this.straightLine.length * progress;
+                const startX = 400 - lineWidth / 2;
+                const endX = 400 + lineWidth / 2;
+                
+                this.ctx.beginPath();
+                this.ctx.moveTo(startX, currentY);
+                this.ctx.lineTo(endX, currentY);
+                this.ctx.strokeStyle = '#e74c3c';
+                this.ctx.lineWidth = 4;
+                this.ctx.lineCap = 'round';
+                this.ctx.stroke();
+                
+                // 端点
+                this.ctx.fillStyle = '#c0392b';
+                this.ctx.beginPath();
+                this.ctx.arc(startX, currentY, 6, 0, Math.PI * 2);
+                this.ctx.arc(endX, currentY, 6, 0, Math.PI * 2);
+                this.ctx.fill();
+                
+                this.ctx.restore();
+            }
+            
+            /**
+             * 渲染直线移动到底部
+             */
+            renderLineMoving(progress) {
+                this.ctx.clearRect(0, 0, 800, 600);
+                this.drawGrid();
+                
+                const startY = 300;
+                const endY = this.straightLine.targetY;
+                const currentY = startY + (endY - startY) * progress;
+                
+                // 绘制直线
+                this.ctx.beginPath();
+                this.ctx.moveTo(this.straightLine.startX, currentY);
+                this.ctx.lineTo(this.straightLine.endX, currentY);
+                this.ctx.strokeStyle = '#e74c3c';
+                this.ctx.lineWidth = 4;
+                this.ctx.lineCap = 'round';
+                this.ctx.stroke();
+                
+                // 端点
+                this.ctx.fillStyle = '#c0392b';
+                this.ctx.beginPath();
+                this.ctx.arc(this.straightLine.startX, currentY, 6, 0, Math.PI * 2);
+                this.ctx.arc(this.straightLine.endX, currentY, 6, 0, Math.PI * 2);
+                this.ctx.fill();
+            }
+            
+            /**
+             * 渲染直线在底部位置
+             */
+            renderLineAtBottom() {
+                this.ctx.clearRect(0, 0, 800, 600);
+                this.drawGrid();
+                this.drawStraightLine();
+            }
+            
+            /**
+             * 完成转换
+             */
+            finishConversion() {
+                this.appState = 'measuring';
+                this.updateStatus('measuring');
+                
+                document.getElementById('brushTool').disabled = true;
+                document.getElementById('rulerTool').disabled = false;
+                this.setTool('ruler');
+                
+                // 自动吸附标尺到线条起点
+                this.snapRulerToLineStart();
+                
+                // 更新显示
+                document.getElementById('lineLength').textContent = this.straightLine.length.toFixed(1) + ' px';
+                
+                this.showToast('转换完成！标尺已自动对齐，可拖拽移动');
+                this.render();
+            }
+            
+            /**
+             * 标尺自动吸附到线条起点
+             */
+            snapRulerToLineStart() {
+                this.ruler.x = this.straightLine.startX + this.ruler.width / 2 - this.RULER_EXTRA_LENGTH;
+                this.ruler.y = this.straightLine.targetY;
+                this.ruler.isSnapped = true;
+                this.ruler.snapTarget = 'start';
+                this.showSnapHint(this.ruler.x - this.ruler.width/2 + 50, this.ruler.y - 60);
+                this.checkMeasurement();
+            }
+            
+            /**
+             * 检查并执行吸附
+             */
+            checkSnap() {
+                const lineY = this.straightLine.targetY;
+                const distToLine = Math.abs(this.ruler.y - lineY);
+                
+                // 垂直方向吸附到同一水平线
+                if (distToLine < this.SNAP_THRESHOLD) {
+                    this.ruler.y = lineY;
+                }
+                
+                // 水平方向吸附到起点或终点
+                const distToStart = Math.abs(this.ruler.x - this.ruler.width/2 - this.straightLine.startX);
+                const distToEnd = Math.abs(this.ruler.x + this.ruler.width/2 - this.straightLine.endX);
+                const centerX = (this.straightLine.startX + this.straightLine.endX) / 2;
+                const distToCenter = Math.abs(this.ruler.x - centerX);
+                
+                if (distToStart < this.SNAP_THRESHOLD) {
+                    // 吸附到起点：标尺左端对齐线条起点
+                    this.ruler.x = this.straightLine.startX + this.ruler.width / 2 - this.RULER_EXTRA_LENGTH;
+                    this.ruler.isSnapped = true;
+                    this.ruler.snapTarget = 'start';
+                    this.showSnapHint(this.ruler.x - this.ruler.width/2 + 50, this.ruler.y - 60);
+                } else if (distToEnd < this.SNAP_THRESHOLD) {
+                    // 吸附到终点：标尺右端对齐线条终点
+                    this.ruler.x = this.straightLine.endX - this.ruler.width / 2 + this.RULER_EXTRA_LENGTH;
+                    this.ruler.isSnapped = true;
+                    this.ruler.snapTarget = 'end';
+                    this.showSnapHint(this.ruler.x + this.ruler.width/2 - 50, this.ruler.y - 60);
+                } else if (distToCenter < this.SNAP_THRESHOLD && !this.ruler.isSnapped) {
+                    // 吸附到中心
+                    this.ruler.x = centerX;
+                    this.ruler.isSnapped = true;
+                    this.ruler.snapTarget = 'center';
+                    this.showSnapHint(this.ruler.x, this.ruler.y - 60);
+                } else {
+                    this.ruler.isSnapped = false;
+                    this.hideSnapHint();
+                }
+            }
+            
+            showSnapHint(x, y) {
+                const hint = document.getElementById('snapHint');
+                hint.style.left = (x * this.canvasScale + this.canvasWrapper.offsetLeft) + 'px';
+                hint.style.top = (y * this.canvasScale + this.canvasWrapper.offsetTop) + 'px';
+                hint.classList.add('show');
+                
+                setTimeout(() => {
+                    hint.classList.remove('show');
+                }, 1500);
+            }
+            
+            hideSnapHint() {
+                document.getElementById('snapHint').classList.remove('show');
+            }
+            
+            /**
+             * 检查测量结果
+             */
+            checkMeasurement() {
+                if (!this.straightLine.length) return;
+                
+                // 计算标尺与线条的重叠部分
+                const rulerLeft = this.ruler.x - this.ruler.width / 2 + this.RULER_EXTRA_LENGTH;
+                const rulerRight = this.ruler.x + this.ruler.width / 2 - this.RULER_EXTRA_LENGTH;
+                
+                const lineLeft = this.straightLine.startX;
+                const lineRight = this.straightLine.endX;
+                
+                // 计算重叠区间
+                const overlapLeft = Math.max(rulerLeft, lineLeft);
+                const overlapRight = Math.min(rulerRight, lineRight);
+                const overlapLength = Math.max(0, overlapRight - overlapLeft);
+                
+                // 判断是否对齐
+                const isAligned = Math.abs(this.ruler.y - this.straightLine.targetY) < 5;
+                
+                if (isAligned && overlapLength > 0) {
+                    const percentage = (overlapLength / this.straightLine.length * 100).toFixed(0);
+                    document.getElementById('rulerResult').textContent = 
+                        overlapLength.toFixed(1) + ' px (' + percentage + '%)';
+                    document.getElementById('rulerResult').style.color = '#27ae60';
+                } else {
+                    document.getElementById('rulerResult').textContent = '未对齐';
+                    document.getElementById('rulerResult').style.color = '#e74c3c';
+                }
+            }
+            
+            isPointOnRuler(pos) {
+                const halfWidth = this.ruler.width / 2;
+                const halfHeight = this.ruler.height / 2;
+                return pos.x >= this.ruler.x - halfWidth && 
+                       pos.x <= this.ruler.x + halfWidth &&
+                       pos.y >= this.ruler.y - halfHeight && 
+                       pos.y <= this.ruler.y + halfHeight;
+            }
+            
+            setTool(tool) {
+                this.currentTool = tool;
+                document.getElementById('brushTool').classList.toggle('active', tool === 'brush');
+                document.getElementById('rulerTool').classList.toggle('active', tool === 'ruler');
+                this.canvas.style.cursor = tool === 'brush' ? 'crosshair' : 'default';
+            }
+            
+            updateStatus(state) {
+                const badge = document.getElementById('statusBadge');
+                const progressFill = document.getElementById('progressFill');
+                
+                badge.className = 'status-badge';
+                
+                switch(state) {
+                    case 'drawing':
+                        badge.classList.add('status-drawing');
+                        badge.textContent = '描边中';
+                        progressFill.style.width = '33%';
+                        break;
+                    case 'converting':
+                        badge.classList.add('status-converting');
+                        badge.textContent = '转换中';
+                        progressFill.style.width = '66%';
+                        break;
+                    case 'measuring':
+                        badge.classList.add('status-measuring');
+                        badge.textContent = '测量中';
+                        progressFill.style.width = '100%';
+                        break;
+                }
+            }
+            
+            showToast(message) {
+                const toast = document.getElementById('toast');
+                toast.textContent = message;
+                toast.classList.add('show');
+                setTimeout(() => toast.classList.remove('show'), 3000);
+            }
+            
+            handleFileUpload(event) {
+                const file = event.target.files[0];
+                if (!file) return;
+                
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    this.leafImage = new Image();
+                    this.leafImage.onload = () => {
+                        this.imageLoaded = true;
+                        this.reset();
+                        this.showToast('图片上传成功！');
+                    };
+                    this.leafImage.src = e.target.result;
+                };
+                reader.readAsDataURL(file);
+            }
+            
+            reset() {
+                if (this.animationId) {
+                    cancelAnimationFrame(this.animationId);
+                }
+                
+                this.appState = 'drawing';
+                this.currentTool = 'brush';
+                this.pathPoints = [];
+                this.isDrawing = false;
+                this.startPoint = null;
+                this.closedPath = false;
+                this.conversionProgress = 0;
+                this.canvasScale = 1;
+                this.canvasWrapper.style.transform = 'scale(1)';
+                
+                this.ruler = {
+                    x: 400,
+                    y: 450,
+                    width: 300,
+                    height: 50,
+                    isDragging: false,
+                    dragOffset: { x: 0, y: 0 },
+                    isSnapped: false,
+                    snapTarget: 'start'
+                };
+                
+                this.straightLine = {
+                    startX: 0,
+                    endX: 0,
+                    y: 0,
+                    length: 0,
+                    targetY: 450
+                };
+                
+                document.getElementById('brushTool').disabled = false;
+                document.getElementById('brushTool').classList.add('active');
+                document.getElementById('rulerTool').disabled = true;
+                document.getElementById('rulerTool').classList.remove('active');
+                document.getElementById('measureValue').textContent = '0.0';
+                document.getElementById('lineLength').textContent = '0.0 px';
+                document.getElementById('rulerResult').textContent = '未对齐';
+                document.getElementById('rulerResult').style.color = '#e74c3c';
+                document.getElementById('measureHint').textContent = 
+                    '使用画笔沿树叶轮廓描边，收口后自动进入测量模式';
+                
+                this.updateStatus('drawing');
+                this.canvas.style.cursor = 'crosshair';
+                this.hideSnapHint();
+                
+                this.render();
+                this.showToast('已重置，可以重新开始');
+            }
+            
+            /**
+             * 主渲染函数
+             */
+            render() {
+                this.ctx.clearRect(0, 0, 800, 600);
+                this.drawGrid();
+                
+                if (this.appState === 'drawing') {
+                    this.drawImage();
+                    this.drawRawPath();
+                } else if (this.appState === 'measuring') {
+                    this.drawStraightLine();
+                    this.drawRuler();
+                }
+            }
+            
+            drawGrid() {
+                this.ctx.strokeStyle = 'rgba(200, 200, 200, 0.3)';
+                this.ctx.lineWidth = 1;
+                
+                for (let x = 0; x <= 800; x += 20) {
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(x, 0);
+                    this.ctx.lineTo(x, 600);
+                    this.ctx.stroke();
+                }
+                
+                for (let y = 0; y <= 600; y += 20) {
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(0, y);
+                    this.ctx.lineTo(800, y);
+                    this.ctx.stroke();
+                }
+            }
+            
+            drawImage() {
+                if (this.imageLoaded) {
+                    const img = this.leafImage;
+                    const scale = Math.min(300 / img.width, 300 / img.height);
+                    const w = img.width * scale;
+                    const h = img.height * scale;
+                    const x = (800 - w) / 2;
+                    const y = (600 - h) / 2 - 50;
+                    this.ctx.drawImage(img, x, y, w, h);
+                }
+            }
+            
+            drawRawPath() {
+                if (this.pathPoints.length === 0) return;
+                
+                this.ctx.beginPath();
+                this.ctx.moveTo(this.pathPoints[0].x, this.pathPoints[0].y);
+                
+                for (let i = 1; i < this.pathPoints.length; i++) {
+                    const p0 = this.pathPoints[i-1];
+                    const p1 = this.pathPoints[i];
+                    const midX = (p0.x + p1.x) / 2;
+                    const midY = (p0.y + p1.y) / 2;
+                    this.ctx.quadraticCurveTo(p0.x, p0.y, midX, midY);
+                }
+                
+                this.ctx.lineTo(this.pathPoints[this.pathPoints.length-1].x, 
+                               this.pathPoints[this.pathPoints.length-1].y);
+                
+                this.ctx.strokeStyle = 'rgba(255, 0, 0, 0.6)';
+                this.ctx.lineWidth = 3;
+                this.ctx.lineCap = 'round';
+                this.ctx.lineJoin = 'round';
+                this.ctx.stroke();
+                
+                if (this.startPoint) {
+                    this.ctx.beginPath();
+                    this.ctx.arc(this.startPoint.x, this.startPoint.y, 5, 0, Math.PI * 2);
+                    this.ctx.fillStyle = '#27ae60';
+                    this.ctx.fill();
+                    this.ctx.strokeStyle = '#2ecc71';
+                    this.ctx.lineWidth = 2;
+                    this.ctx.stroke();
+                    
+                    if (this.pathPoints.length > 10) {
+                        const lastPoint = this.pathPoints[this.pathPoints.length - 1];
+                        const dist = this.distance(lastPoint, this.startPoint);
+                        if (dist < this.CLOSE_THRESHOLD) {
+                            this.ctx.beginPath();
+                            this.ctx.arc(this.startPoint.x, this.startPoint.y, this.CLOSE_THRESHOLD, 0, Math.PI * 2);
+                            this.ctx.strokeStyle = 'rgba(46, 204, 113, 0.5)';
+                            this.ctx.lineWidth = 2;
+                            this.ctx.setLineDash([5, 5]);
+                            this.ctx.stroke();
+                            this.ctx.setLineDash([]);
+                        }
+                    }
+                }
+            }
+            
+            /**
+             * 绘制水平直线 - 平行于底部
+             */
+            drawStraightLine() {
+                if (!this.straightLine.length) return;
+                
+                const { startX, endX, targetY } = this.straightLine;
+                
+                // 绘制直线
+                this.ctx.beginPath();
+                this.ctx.moveTo(startX, targetY);
+                this.ctx.lineTo(endX, targetY);
+                this.ctx.strokeStyle = '#e74c3c';
+                this.ctx.lineWidth = 4;
+                this.ctx.lineCap = 'round';
+                this.ctx.stroke();
+                
+                // 绘制端点
+                this.ctx.fillStyle = '#c0392b';
+                this.ctx.beginPath();
+                this.ctx.arc(startX, targetY, 6, 0, Math.PI * 2);
+                this.ctx.arc(endX, targetY, 6, 0, Math.PI * 2);
+                this.ctx.fill();
+                
+                // 绘制标签 A B
+                this.ctx.fillStyle = '#2c3e50';
+                this.ctx.font = 'bold 14px Arial';
+                this.ctx.textAlign = 'center';
+                this.ctx.fillText('A (起点)', startX, targetY - 15);
+                this.ctx.fillText('B (终点)', endX, targetY - 15);
+                
+                // 绘制长度标注（在线条下方）
+                this.ctx.fillStyle = '#7f8c8d';
+                this.ctx.font = '12px Arial';
+                this.ctx.fillText(`被测长度: ${this.straightLine.length.toFixed(1)}px`, 
+                                 (startX + endX) / 2, targetY + 25);
+            }
+            
+            /**
+             * 绘制水平标尺 - 始终平行于底部，长度大于线条
+             */
+            drawRuler() {
+                const { x, y, width, height } = this.ruler;
+                const lineLength = this.straightLine.length;
+                const extraLength = this.RULER_EXTRA_LENGTH;
+                
+                this.ctx.save();
+                
+                // 绘制标尺主体 - 木质风格
+                const gradient = this.ctx.createLinearGradient(x - width/2, y - height/2, x + width/2, y + height/2);
+                gradient.addColorStop(0, '#f4e4c1');
+                gradient.addColorStop(0.5, '#e6d5a7');
+                gradient.addColorStop(1, '#d4c596');
+                
+                this.ctx.fillStyle = gradient;
+                this.ctx.strokeStyle = '#8b7355';
+                this.ctx.lineWidth = 2;
+                
+                // 阴影
+                this.ctx.shadowColor = 'rgba(0,0,0,0.3)';
+                this.ctx.shadowBlur = 8;
+                this.ctx.shadowOffsetX = 2;
+                this.ctx.shadowOffsetY = 2;
+                
+                // 绘制圆角矩形
+                this.roundRect(x - width/2, y - height/2, width, height, 5);
+                this.ctx.fill();
+                this.ctx.stroke();
+                
+                this.ctx.shadowColor = 'transparent';
+                
+                // 绘制刻度 - 从标尺有效测量区域开始
+                const effectiveStart = x - width/2 + extraLength;
+                const effectiveEnd = x + width/2 - extraLength;
+                
+                this.ctx.strokeStyle = '#5d4e37';
+                this.ctx.lineWidth = 1;
+                this.ctx.fillStyle = '#5d4e37';
+                this.ctx.font = '10px Arial';
+                this.ctx.textAlign = 'center';
+                
+                // 每10px一个刻度
+                const tickSpacing = 10;
+                const totalTicks = Math.floor((effectiveEnd - effectiveStart) / tickSpacing);
+                
+                for (let i = 0; i <= totalTicks; i++) {
+                    const tickX = effectiveStart + i * tickSpacing;
+                    let tickHeight = 8;
+                    
+                    if (i % 10 === 0) {
+                        tickHeight = 15;
+                        // 标注数字（厘米）
+                        this.ctx.fillText((i / 10).toString(), tickX, y - height/2 + tickHeight + 12);
+                    } else if (i % 5 === 0) {
+                        tickHeight = 12;
+                    }
+                    
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(tickX, y - height/2);
+                    this.ctx.lineTo(tickX, y - height/2 + tickHeight);
+                    this.ctx.stroke();
+                }
+                
+                // 绘制中心点标记
+                this.ctx.beginPath();
+                this.ctx.arc(x, y, 4, 0, Math.PI * 2);
+                this.ctx.fillStyle = '#e74c3c';
+                this.ctx.fill();
+                
+                // 在标尺上直接显示测量结果
+                this.updateRulerDisplay(x, y, width, effectiveStart, effectiveEnd);
+                
+                this.ctx.restore();
+            }
+            
+            /**
+             * 在标尺上显示测量结果
+             */
+            updateRulerDisplay(rulerX, rulerY, rulerWidth, effectiveStart, effectiveEnd) {
+                const lineStart = this.straightLine.startX;
+                const lineEnd = this.straightLine.endX;
+                
+                // 计算重叠
+                const overlapStart = Math.max(effectiveStart, lineStart);
+                const overlapEnd = Math.min(effectiveEnd, lineEnd);
+                const overlapLength = Math.max(0, overlapEnd - overlapStart);
+                
+                // 在标尺中央显示结果
+                this.ctx.fillStyle = '#2c3e50';
+                this.ctx.font = 'bold 14px Arial';
+                this.ctx.textAlign = 'center';
+                this.ctx.textBaseline = 'middle';
+                
+                if (overlapLength > 0 && Math.abs(this.ruler.y - this.straightLine.targetY) < 10) {
+                    // 已对齐，显示绿色结果
+                    this.ctx.fillStyle = '#27ae60';
+                    this.ctx.fillText(`✓ ${overlapLength.toFixed(1)}px`, rulerX, rulerY + 5);
+                    
+                    // 绘制对齐指示线
+                    this.ctx.strokeStyle = 'rgba(46, 204, 113, 0.3)';
+                    this.ctx.lineWidth = 2;
+                    this.ctx.setLineDash([5, 5]);
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(lineStart, this.straightLine.targetY - 20);
+                    this.ctx.lineTo(lineStart, rulerY - ruler.height/2);
+                    this.ctx.moveTo(lineEnd, this.straightLine.targetY - 20);
+                    this.ctx.lineTo(lineEnd, rulerY - ruler.height/2);
+                    this.ctx.stroke();
+                    this.ctx.setLineDash([]);
+                } else {
+                    // 未对齐，显示提示
+                    this.ctx.fillStyle = '#95a5a6';
+                    this.ctx.fillText('移动对齐', rulerX, rulerY + 5);
+                }
+                
+                // 在标尺两端标注
+                this.ctx.font = '11px Arial';
+                this.ctx.fillStyle = '#7f8c8d';
+                this.ctx.fillText('0', effectiveStart, rulerY + ruler.height/2 - 8);
+                this.ctx.fillText(`${this.straightLine.length.toFixed(0)}`, effectiveEnd, rulerY + ruler.height/2 - 8);
+            }
+            
+            /**
+             * 绘制圆角矩形辅助函数
+             */
+            roundRect(x, y, width, height, radius) {
+                this.ctx.beginPath();
+                this.ctx.moveTo(x + radius, y);
+                this.ctx.lineTo(x + width - radius, y);
+                this.ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+                this.ctx.lineTo(x + width, y + height - radius);
+                this.ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+                this.ctx.lineTo(x + radius, y + height);
+                this.ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+                this.ctx.lineTo(x, y + radius);
+                this.ctx.quadraticCurveTo(x, y, x + radius, y);
+                this.ctx.closePath();
+            }
+        }
+        
+        // 初始化应用
+        const app = new MeasurementApp();
+    </script>
+</body>
+</html>

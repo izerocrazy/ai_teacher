@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>树叶周长测量 - 多邻国风格</title>
+    <!-- 引入PixiJS库 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pixi.js/7.2.4/pixi.min.js"></script>
+    <style>
+        /* 多邻国风格的全局样式 */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(135deg, #56CCF2 0%, #2F80ED 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+        }
+        
+        h1 {
+            color: white;
+            margin-bottom: 20px;
+            font-size: 32px;
+            font-weight: 700;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        
+        /* 顶部工具栏 */
+        .toolbar {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 25px;
+            background: white;
+            padding: 15px 25px;
+            border-radius: 50px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        
+        .tool-btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+        
+        .tool-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 15px rgba(0,0,0,0.15);
+        }
+        
+        .tool-btn.active {
+            transform: scale(1.05);
+        }
+        
+        .brush-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .brush-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .ruler-btn {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+        }
+        
+        .ruler-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .reset-btn {
+            background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+            color: white;
+        }
+        
+        /* 主容器 */
+        .main-container {
+            display: flex;
+            gap: 25px;
+            align-items: flex-start;
+            width: 100%;
+            max-width: 1000px;
+        }
+        
+        /* 画布容器 */
+        .canvas-wrapper {
+            position: relative;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+            transition: transform 0.5s ease;
+        }
+        
+        #canvas {
+            display: block;
+            cursor: crosshair;
+        }
+        
+        /* 右侧信息面板 */
+        .info-panel {
+            width: 300px;
+            background: white;
+            border-radius: 20px;
+            padding: 25px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+        }
+        
+        .info-section {
+            margin-bottom: 25px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+        
+        .info-section:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+        }
+        
+        .info-title {
+            font-size: 14px;
+            color: #7f8c8d;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 15px;
+        }
+        
+        .status-badge {
+            display: inline-block;
+            padding: 10px 20px;
+            border-radius: 25px;
+            font-weight: 600;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+        
+        .status-drawing {
+            background: #e3f2fd;
+            color: #1976d2;
+            animation: pulse 2s infinite;
+        }
+        
+        .status-converting {
+            background: #fff3e0;
+            color: #f57c00;
+        }
+        
+        .status-measuring {
+            background: #e8f5e9;
+            color: #388e3c;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+        
+        .measurement-display {
+            font-size: 28px;
+            font-weight: 700;
+            color: #2c3e50;
+            margin: 15px 0;
+        }
+        
+        .measurement-unit {
+            font-size: 16px;
+            color: #7f8c8d;
+            margin-left: 5px;
+        }
+        
+        .hint-text {
+            font-size: 13px;
+            color: #95a5a6;
+            line-height: 1.6;
+            margin-top: 10px;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #ecf0f1;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 15px;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #56CCF2 0%, #2F80ED 100%);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+        
+        /* 操作提示 */
+        .toast {
+            position: fixed;
+            top: 100px;
+            left: 50%;
+            transform: translateX(-50%) translateY(-20px);
+            background: rgba(0,0,0,0.8);
+            color: white;
+            padding: 12px 24px;
+            border-radius: 30px;
+            font-size: 14px;
+            opacity: 0;
+            transition: all 0.3s ease;
+            pointer-events: none;
+            z-index: 1000;
+        }
+        
+        .toast.show {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
+        
+        /* 吸附提示 */
+        .snap-hint {
+            position: absolute;
+            background: rgba(76, 175, 80, 0.9);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            z-index: 100;
+        }
+        
+        .snap-hint.show {
+            opacity: 1;
+        }
+        
+        /* 响应式设计 */
+        @media (max-width: 1024px) {
+            .main-container {
+                flex-direction: column;
+                align-items: center;
+            }
+            
+            .info-panel {
+                width: 100%;
+                max-width: 700px;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .toolbar {
+                flex-wrap: wrap;
+                justify-content: center;
+            }
+            
+            .tool-btn {
+                font-size: 12px;
+                padding: 10px 20px;
+            }
+            
+            #canvas {
+                width: 100%;
+                height: auto;
+                max-width: 100%;
+            }
+        }
+        
+        /* 动画效果 */
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .canvas-wrapper, .info-panel {
+            animation: fadeIn 0.5s ease-out;
+        }
+    </style>
+</head>
+<body>
+    <h1>🍃 树叶周长测量</h1>
+    
+    <div class="toolbar">
+        <button class="tool-btn brush-btn active" id="brushTool">
+            ✏️ 画笔工具
+        </button>
+        <button class="tool-btn ruler-btn" id="rulerTool" disabled>
+            📏 标尺工具
+        </button>
+        <button class="tool-btn reset-btn" id="reset-btn">
+            🔄 重置
+        </button>
+    </div>
+    
+    <div class="main-container">
+        <div class="canvas-wrapper" id="canvasWrapper">
+            <canvas id="canvas" width="700" height="500"></canvas>
+            <div class="snap-hint" id="snapHint">已吸附对齐</div>
+        </div>
+        
+        <div class="info-panel">
+            <div class="info-section">
+                <div class="info-title">当前状态</div>
+                <span class="status-badge status-drawing" id="statusBadge">描边中</span>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill"></div>
+                </div>
+            </div>
+            
+            <div class="info-section">
+                <div class="info-title">测量数据</div>
+                <div style="font-size: 14px; color: #7f8c8d; margin-bottom: 10px;">
+                    被测线条长度: <strong id="lineLength" style="color: #e74c3c;">0.0 px</strong>
+                </div>
+                <div style="font-size: 14px; color: #7f8c8d;">
+                    标尺测量结果: <strong id="rulerResult" style="color: #27ae60;">未对齐</strong>
+                </div>
+                <div class="hint-text" id="measureHint">
+                    使用画笔沿树叶轮廓描边，收口后自动进入测量模式
+                </div>
+            </div>
+            
+            <div class="info-section">
+                <div class="info-title">操作指南</div>
+                <div class="hint-text">
+                    <strong>阶段1：</strong>选择画笔，按住鼠标沿树叶轮廓描绘<br><br>
+                    <strong>阶段2：</strong>当光标靠近起点（出现绿色圆圈），松开鼠标自动收口<br><br>
+                    <strong>阶段3：</strong>标尺自动吸附到线条，拖拽可移动，结果直接显示<br><br>
+                    <strong>提示：</strong>标尺长度始终大于被测线条，确保完整测量
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="toast" id="toast"></div>
+    <script src="script.js"></script>
+</body>
+</html>

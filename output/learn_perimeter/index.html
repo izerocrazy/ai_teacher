@@ -1,0 +1,872 @@
+﻿<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>认识周长 - 多乐学风格</title>
+  <style>
+    :root {
+      --duo-green: #58cc02;
+      --duo-green-dark: #46a302;
+      --duo-blue: #1cb0f6;
+      --duo-blue-dark: #0f8ec8;
+      --duo-orange: #ff9600;
+      --duo-orange-dark: #e07a00;
+      --duo-red: #ff4b4b;
+      --duo-text: #3c3c3c;
+      --duo-sub: #777777;
+      --duo-bg: #f7f7f7;
+      --duo-card: #ffffff;
+      --duo-border: #e5e5e5;
+      --duo-shadow: 0 6px 0 #d8d8d8;
+      --trace-color: #ff4b4b;
+      --trace-ghost: rgba(255, 75, 75, 0.34);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      min-height: 100%;
+      font-family: "Trebuchet MS", "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      color: var(--duo-text);
+      background:
+        radial-gradient(circle at 8% 8%, #dff8c8 0 12%, transparent 13%),
+        radial-gradient(circle at 92% 14%, #d5f2ff 0 10%, transparent 11%),
+        radial-gradient(circle at 90% 88%, #ffe5ba 0 11%, transparent 12%),
+        linear-gradient(180deg, #f0fbeb 0%, #fdfdfd 70%);
+    }
+
+    body {
+      display: grid;
+      place-items: center;
+      padding: 18px;
+    }
+
+    .app {
+      width: min(100%, 1020px);
+      display: grid;
+      gap: 14px;
+    }
+
+    .hud {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 12px;
+      align-items: center;
+      background: var(--duo-card);
+      border: 2px solid var(--duo-border);
+      border-radius: 18px;
+      padding: 12px;
+      box-shadow: var(--duo-shadow);
+    }
+
+    .lesson {
+      display: grid;
+      gap: 6px;
+    }
+
+    .title {
+      font-size: 22px;
+      font-weight: 900;
+      letter-spacing: 0.3px;
+    }
+
+    .hint {
+      font-size: 14px;
+      color: var(--duo-sub);
+      line-height: 1.45;
+    }
+
+    .actions {
+      display: inline-flex;
+      gap: 10px;
+    }
+
+    .btn {
+      border: 0;
+      border-radius: 12px;
+      font-size: 14px;
+      font-weight: 900;
+      letter-spacing: 0.3px;
+      padding: 11px 14px;
+      color: #fff;
+      cursor: pointer;
+      transform: translateY(0);
+      transition: transform 0.08s ease;
+    }
+
+    .btn:active {
+      transform: translateY(2px);
+    }
+
+    .btn-green {
+      background: var(--duo-green);
+      border-bottom: 4px solid var(--duo-green-dark);
+    }
+
+    .btn-blue {
+      background: var(--duo-blue);
+      border-bottom: 4px solid var(--duo-blue-dark);
+    }
+
+    .board {
+      position: relative;
+      background: var(--duo-card);
+      border: 2px solid var(--duo-border);
+      border-radius: 22px;
+      box-shadow: var(--duo-shadow);
+      overflow: hidden;
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: auto;
+      background: linear-gradient(180deg, #fcfffa, #f8ffef);
+    }
+
+    .panel {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 10px;
+    }
+
+    .card {
+      background: var(--duo-card);
+      border: 2px solid var(--duo-border);
+      border-radius: 16px;
+      padding: 11px 12px;
+      box-shadow: 0 4px 0 #dcdcdc;
+    }
+
+    .card .k {
+      color: var(--duo-sub);
+      font-size: 12px;
+      margin-bottom: 4px;
+      letter-spacing: 0.2px;
+    }
+
+    .card .v {
+      font-size: 20px;
+      font-weight: 900;
+      color: #2f2f2f;
+    }
+
+    @media (max-width: 900px) {
+      .hud {
+        grid-template-columns: 1fr;
+      }
+      .actions {
+        width: 100%;
+      }
+      .btn {
+        flex: 1;
+      }
+      .panel {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="hud">
+      <div class="lesson">
+        <div class="title">认识周长</div>
+        <div class="hint" id="hintText">阶段1：按住鼠标沿树叶边缘描边，靠近起点后松开会自动闭合。</div>
+      </div>
+      <div class="actions">
+        <button id="clearBtn" class="btn btn-blue" type="button">清除描边</button>
+        <button id="resetBtn" class="btn btn-green" type="button">重新开始</button>
+      </div>
+    </div>
+
+    <div class="board">
+      <canvas id="appCanvas" width="900" height="600" aria-label="认识周长互动画布"></canvas>
+    </div>
+
+    <div class="panel">
+      <div class="card">
+        <div class="k">状态提示</div>
+        <div class="v" id="statusText" style="font-size:18px;">等待描边</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const config = {
+      canvasWidth: 900,
+      canvasHeight: 600,
+      grid: 30,
+      traceLineWidth: 4,
+      traceColor: getComputedStyle(document.documentElement).getPropertyValue("--trace-color").trim() || "#ff4b4b",
+      traceGhostColor: getComputedStyle(document.documentElement).getPropertyValue("--trace-ghost").trim() || "rgba(255, 75, 75, 0.34)",
+      closeThreshold: 20,
+      minTracePoints: 16,
+      minPointGap: 2.5,
+      lineY: 470,
+      lineMaxPadding: 85,
+      baseScale: 3.2,
+      rulerSnapY: 28,
+      rulerTopSnapThreshold: 16,
+      rulerEndPadding: 24,
+      rulerHeight: 44,
+      rulerInitialOffsetY: 56,
+      lineMorphDuration: 850,
+      handleRadius: 13,
+      messageDuration: 1800
+    };
+
+    let state = "trace"; // trace | measure
+    let isDrawing = false;
+    let points = [];
+
+    const leaf = {
+      x: config.canvasWidth / 2,
+      y: config.canvasHeight / 2 - 60,
+      w: 220,
+      h: 300,
+      rotate: -0.1
+    };
+
+    const straight = {
+      startX: 0,
+      endX: 0,
+      pxLength: 0,
+      totalUnits: 0,
+      rulerUnits: 0,
+      rulerPxLength: 0,
+      randomOffsetMm: 0,
+      unitsPerPx: 1 / config.baseScale
+    };
+
+    const ruler = {
+      x: 0,
+      y: 0,
+      dragging: null,
+      dragOffsetX: 0,
+      dragOffsetY: 0,
+      locked: false
+    };
+
+    const lineMorph = {
+      active: false,
+      startTime: 0,
+      fromY: 0
+    };
+
+    const canvas = document.getElementById("appCanvas");
+    const ctx = canvas.getContext("2d");
+    const clearBtn = document.getElementById("clearBtn");
+    const resetBtn = document.getElementById("resetBtn");
+    const hintText = document.getElementById("hintText");
+    const statusText = document.getElementById("statusText");
+
+    function init() {
+      bindEvents();
+      resetAll();
+      requestAnimationFrame(loop);
+    }
+
+    function bindEvents() {
+      clearBtn.addEventListener("click", clearTrace);
+      resetBtn.addEventListener("click", resetAll);
+
+      canvas.addEventListener("mousedown", onPointerDown);
+      canvas.addEventListener("mousemove", onPointerMove);
+      window.addEventListener("mouseup", onPointerUp);
+
+      canvas.addEventListener("touchstart", onPointerDown, { passive: false });
+      canvas.addEventListener("touchmove", onPointerMove, { passive: false });
+      window.addEventListener("touchend", onPointerUp, { passive: false });
+    }
+
+    function loop() {
+      draw();
+      requestAnimationFrame(loop);
+    }
+
+    function draw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      drawGrid();
+      drawLeaf();
+      if (state === "trace") {
+        drawTrace(false);
+        drawTraceGuide();
+      }
+      if (state === "measure") {
+        drawStraightenedLine();
+        drawRuler();
+        drawMeasureGuide();
+      }
+    }
+
+    function drawGrid() {
+      ctx.save();
+      ctx.strokeStyle = "rgba(0, 0, 0, 0.06)";
+      ctx.lineWidth = 1;
+      for (let x = 0; x <= canvas.width; x += config.grid) {
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, canvas.height);
+        ctx.stroke();
+      }
+      for (let y = 0; y <= canvas.height; y += config.grid) {
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(canvas.width, y);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    function drawLeaf() {
+      ctx.save();
+      ctx.translate(leaf.x, leaf.y);
+      ctx.rotate(leaf.rotate);
+
+      const grad = ctx.createLinearGradient(-leaf.w * 0.5, -leaf.h * 0.4, leaf.w * 0.5, leaf.h * 0.6);
+      grad.addColorStop(0, "#9be74f");
+      grad.addColorStop(1, "#58cc02");
+
+      ctx.beginPath();
+      ctx.moveTo(0, -leaf.h * 0.52);
+      ctx.bezierCurveTo(leaf.w * 0.5, -leaf.h * 0.44, leaf.w * 0.62, leaf.h * 0.08, 0, leaf.h * 0.52);
+      ctx.bezierCurveTo(-leaf.w * 0.62, leaf.h * 0.08, -leaf.w * 0.5, -leaf.h * 0.44, 0, -leaf.h * 0.52);
+      ctx.closePath();
+      ctx.fillStyle = grad;
+      ctx.strokeStyle = "#3c9a00";
+      ctx.lineWidth = 3;
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.strokeStyle = "#2b7d00";
+      ctx.lineWidth = 2.1;
+      ctx.beginPath();
+      ctx.moveTo(-leaf.w * 0.015, -leaf.h * 0.48);
+      ctx.bezierCurveTo(leaf.w * 0.028, -leaf.h * 0.24, -leaf.w * 0.02, leaf.h * 0.08, leaf.w * 0.012, leaf.h * 0.48);
+      ctx.stroke();
+
+      const veinAnchors = [-0.34, -0.18, -0.03, 0.14, 0.29];
+      ctx.lineWidth = 1.7;
+      for (let i = 0; i < veinAnchors.length; i++) {
+        const anchor = veinAnchors[i];
+        const y = leaf.h * anchor;
+        const lift = leaf.h * (0.06 - anchor * 0.045);
+        const spanBase = leaf.w * (0.26 - Math.abs(anchor) * 0.15);
+
+        for (const side of [1, -1]) {
+          const startX = side * Math.sin((anchor + 0.45) * Math.PI) * leaf.w * 0.014;
+          const endX = startX + side * spanBase;
+          const endY = y - lift;
+          const ctrlX = startX + side * spanBase * 0.58;
+          const ctrlY = y - lift * 0.95 - leaf.h * (0.015 + Math.abs(anchor) * 0.025);
+
+          ctx.beginPath();
+          ctx.moveTo(startX, y);
+          ctx.quadraticCurveTo(ctrlX, ctrlY, endX, endY);
+          ctx.stroke();
+        }
+      }
+      ctx.restore();
+    }
+
+    function drawTrace(ghost) {
+      if (points.length < 1) return;
+      ctx.save();
+      ctx.strokeStyle = ghost ? config.traceGhostColor : config.traceColor;
+      ctx.lineWidth = config.traceLineWidth;
+      ctx.lineJoin = "round";
+      ctx.lineCap = "round";
+      ctx.beginPath();
+      ctx.moveTo(points[0].x, points[0].y);
+      for (let i = 1; i < points.length; i++) {
+        ctx.lineTo(points[i].x, points[i].y);
+      }
+      ctx.stroke();
+
+      if (state === "trace") {
+        ctx.fillStyle = "#ffffff";
+        ctx.strokeStyle = config.traceColor;
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(points[0].x, points[0].y, 7, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    function drawTraceGuide() {
+      if (points.length === 0) {
+        drawBubble("沿树叶边缘描一圈，接近起点会自动闭合", leaf.x, 10);
+        return;
+      }
+      const first = points[0];
+      const last = points[points.length - 1];
+      const nearClose = distance(first, last) < config.closeThreshold;
+      if (nearClose && points.length >= config.minTracePoints) {
+        ctx.save();
+        ctx.strokeStyle = "rgba(88,204,2,0.85)";
+        ctx.lineWidth = 3;
+        ctx.setLineDash([6, 6]);
+        ctx.beginPath();
+        ctx.arc(first.x, first.y, config.closeThreshold, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+      }
+    }
+
+    function drawMeasureGuide() {
+      if (lineMorph.active || ruler.locked) return;
+      drawBubble("用尺子测量周长", leaf.x, 10);
+    }
+
+    function drawBubble(text, x, y) {
+      ctx.save();
+      ctx.font = "700 15px Trebuchet MS, sans-serif";
+      const width = ctx.measureText(text).width + 26;
+      const h = 36;
+      ctx.fillStyle = "#ffffff";
+      ctx.strokeStyle = "#d7d7d7";
+      ctx.lineWidth = 2;
+      roundRectPath(ctx, x - width / 2, y, width, h, 12);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = "#4a4a4a";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(text, x, y + h / 2 + 1);
+      ctx.restore();
+    }
+
+    function isClosedTrace() {
+      if (points.length < config.minTracePoints) return false;
+      const first = points[0];
+      const last = points[points.length - 1];
+      return distance(first, last) < config.closeThreshold;
+    }
+
+    function polylineLength(pts) {
+      let len = 0;
+      for (let i = 1; i < pts.length; i++) {
+        len += distance(pts[i - 1], pts[i]);
+      }
+      return len;
+    }
+
+    function drawStraightenedLine() {
+      const rawLen = polylineLength(points);
+      const rawUnits = rawLen / config.baseScale;
+      const lineUnits = mapRawToLineUnits(rawUnits, straight.randomOffsetMm);
+      const extraUnits = 25; // 2.5 cm
+      const rulerUnits = lineUnits + extraUnits;
+      const maxRulerPx = canvas.width - config.lineMaxPadding * 2;
+      const preferredPxPerMm = 2.6;
+      const pxPerMm = Math.min(preferredPxPerMm, maxRulerPx / Math.max(rulerUnits, 1));
+
+      straight.totalUnits = lineUnits;
+      straight.rulerUnits = rulerUnits;
+      straight.unitsPerPx = 1 / Math.max(pxPerMm, 0.0001);
+      straight.pxLength = lineUnits * pxPerMm;
+      straight.rulerPxLength = rulerUnits * pxPerMm;
+      straight.startX = (canvas.width - straight.pxLength) / 2;
+      straight.endX = straight.startX + straight.pxLength;
+
+      clampRulerWithinCanvas();
+
+      const t = getLineMorphProgress();
+      const straightenT = clamp(t / 0.7, 0, 1);
+      const unfoldT = clamp((t - 0.15) / 0.65, 0, 1);
+      const moveT = clamp((t - 0.55) / 0.45, 0, 1);
+      const straightenEase = easeInOutCubic(straightenT);
+      const unfoldEase = easeOutCubic(unfoldT);
+      const moveEase = easeInOutCubic(moveT);
+
+      if (lineMorph.active) {
+        drawTraceMorphToLine(straightenEase, unfoldEase, moveEase);
+      } else {
+        ctx.save();
+        ctx.strokeStyle = "#0f8ec8";
+        ctx.lineWidth = 6;
+        ctx.lineCap = "butt";
+        ctx.beginPath();
+        ctx.moveTo(straight.startX, config.lineY);
+        ctx.lineTo(straight.endX, config.lineY);
+        ctx.stroke();
+
+        ctx.fillStyle = "#196f96";
+        ctx.font = "900 16px Trebuchet MS, sans-serif";
+        ctx.textAlign = "left";
+        ctx.fillText("拉直后的线段", straight.startX, config.lineY - 14);
+        ctx.restore();
+      }
+
+    }
+
+    function drawTicks(geom) {
+      ctx.save();
+      const pxPerMm = 1 / Math.max(straight.unitsPerPx, 0.0001);
+      const maxMm = Math.floor(straight.rulerUnits);
+      ctx.strokeStyle = "#514115";
+      ctx.lineWidth = 1;
+
+      for (let mm = 0; mm <= maxMm; mm++) {
+        const x = geom.scaleStartX + mm * pxPerMm;
+        if (x > geom.scaleEndX + 0.1) break;
+        const tickLen = mm % 10 === 0 ? 22 : mm % 5 === 0 ? 16 : 10;
+        ctx.beginPath();
+        ctx.moveTo(x, geom.top);
+        ctx.lineTo(x, geom.top + tickLen);
+        ctx.stroke();
+
+        if (mm % 10 === 0) {
+          ctx.fillStyle = "#4a3a0f";
+          ctx.font = "700 12px Trebuchet MS, sans-serif";
+          ctx.textAlign = "center";
+          ctx.fillText((mm / 10).toString(), x, geom.top + geom.height - 8);
+        }
+      }
+
+      ctx.fillStyle = "#4a3a0f";
+      ctx.font = "700 11px Trebuchet MS, sans-serif";
+      ctx.textAlign = "right";
+      ctx.fillText("cm", geom.right - 8, geom.top + geom.height - 8);
+      ctx.restore();
+    }
+
+    function drawRuler() {
+      const geom = getRulerGeometry();
+      ctx.save();
+      const rulerGrad = ctx.createLinearGradient(0, geom.top, 0, geom.top + geom.height);
+      rulerGrad.addColorStop(0, "#fff6cf");
+      rulerGrad.addColorStop(1, "#f3de99");
+      roundRectPath(ctx, geom.left, geom.top, geom.width, geom.height, 8);
+      ctx.fillStyle = rulerGrad;
+      ctx.strokeStyle = "#d8b45d";
+      ctx.lineWidth = 2;
+      ctx.fill();
+      ctx.stroke();
+
+      drawTicks(geom);
+      ctx.restore();
+
+      if (ruler.locked) {
+        drawBubble("实际长度 = " + formatMmCm(straight.totalUnits), geom.left + geom.width / 2, geom.top - 42);
+      }
+    }
+
+    function formatMmCm(mmValue) {
+      const mm = Math.max(mmValue, 0);
+      const cm = mm / 10;
+      return mm.toFixed(1) + " mm (" + cm.toFixed(2) + " cm)";
+    }
+
+    function getRulerGeometry() {
+      const width = straight.rulerPxLength + config.rulerEndPadding * 2;
+      const left = ruler.x;
+      const top = ruler.y;
+      const scaleStartX = left + config.rulerEndPadding;
+      return {
+        left,
+        right: left + width,
+        top,
+        height: config.rulerHeight,
+        width,
+        centerY: top + config.rulerHeight / 2,
+        scaleStartX,
+        scaleEndX: scaleStartX + straight.rulerPxLength
+      };
+    }
+
+    function hitTestRulerBody(x, y, geom) {
+      return x >= geom.left && x <= geom.right && y >= geom.top && y <= geom.top + geom.height;
+    }
+
+    function onPointerDown(event) {
+      const pos = toCanvasPoint(event);
+      if (!pos) return;
+      if (state === "trace") {
+        isDrawing = true;
+        if (points.length === 0) {
+          points.push(pos);
+        } else if (distance(points[points.length - 1], pos) > config.minPointGap) {
+          points.push(pos);
+        }
+        return;
+      }
+      if (lineMorph.active || ruler.locked) return;
+      const geom = getRulerGeometry();
+      if (hitTestRulerBody(pos.x, pos.y, geom)) {
+        ruler.dragging = "body";
+        ruler.dragOffsetX = pos.x - ruler.x;
+        ruler.dragOffsetY = pos.y - ruler.y;
+      }
+    }
+
+    function onPointerMove(event) {
+      const pos = toCanvasPoint(event);
+      if (!pos) return;
+      if (state === "trace" && isDrawing) {
+        const last = points[points.length - 1];
+        if (!last || distance(last, pos) >= config.minPointGap) {
+          points.push(pos);
+        }
+        return;
+      }
+      if (state === "measure" && ruler.dragging) {
+        if (ruler.dragging === "body") {
+          const snapTopY = getLineSnapTopY();
+          const wasSnapped = Math.abs(ruler.y - snapTopY) < 0.1;
+          ruler.x = pos.x - ruler.dragOffsetX;
+          ruler.y = pos.y - ruler.dragOffsetY;
+          clampRulerWithinCanvas();
+          const isSnapped = Math.abs(ruler.y - snapTopY) < 0.1;
+          if (!wasSnapped && isSnapped) {
+            finalizeRulerSnap();
+          }
+          return;
+        }
+        return;
+      }
+    }
+
+    function onPointerUp(event) {
+      if (event && event.cancelable) event.preventDefault();
+      if (state === "trace" && isDrawing) {
+        isDrawing = false;
+        if (isClosedTrace()) {
+          const first = points[0];
+          points[points.length - 1] = { x: first.x, y: first.y };
+          enterMeasureStage();
+        }
+      }
+      if (state === "measure") {
+        ruler.dragging = null;
+      }
+    }
+
+    function enterMeasureStage() {
+      state = "measure";
+      straight.randomOffsetMm = (Math.random() * 16) - 8; // 每次约 ±0.8cm 随机扰动
+      const rawLen = polylineLength(points);
+      straight.totalUnits = rawLen / config.baseScale;
+      straight.pxLength = Math.min(rawLen, canvas.width - config.lineMaxPadding * 2);
+      straight.unitsPerPx = straight.totalUnits / Math.max(straight.pxLength, 1);
+      straight.startX = (canvas.width - straight.pxLength) / 2;
+      straight.endX = straight.startX + straight.pxLength;
+
+      ruler.x = straight.startX - config.rulerEndPadding;
+      ruler.y = config.lineY + config.rulerInitialOffsetY;
+      clampRulerWithinCanvas();
+      ruler.locked = false;
+      lineMorph.active = true;
+      lineMorph.startTime = performance.now();
+      lineMorph.fromY = getTraceCenterY();
+
+      updateStageUI();
+      statusText.textContent = "可拖动尺子";
+    }
+
+    function clearTrace() {
+      if (state === "measure") return;
+      points = [];
+      isDrawing = false;
+      statusText.textContent = "等待描边";
+    }
+
+    function resetAll() {
+      state = "trace";
+      points = [];
+      isDrawing = false;
+      straight.startX = 0;
+      straight.endX = 0;
+      straight.pxLength = 0;
+      straight.totalUnits = 0;
+      straight.rulerUnits = 0;
+      straight.rulerPxLength = 0;
+      straight.randomOffsetMm = 0;
+      straight.unitsPerPx = 1 / config.baseScale;
+      ruler.x = config.canvasWidth * 0.2;
+      ruler.y = config.lineY + config.rulerInitialOffsetY;
+      ruler.dragging = null;
+      ruler.locked = false;
+      lineMorph.active = false;
+      lineMorph.startTime = 0;
+      lineMorph.fromY = 0;
+      statusText.textContent = "等待描边";
+      updateStageUI();
+    }
+
+    function updateStageUI() {
+      const tracing = state === "trace";
+      hintText.textContent = tracing
+        ? "阶段1：按住鼠标沿树叶边缘描边，靠近起点后松开会自动闭合。"
+        : "阶段2：拖动尺子吸附到蓝线，吸附后自动 0cm 对齐并锁定。";
+    }
+
+    function clampRulerWithinCanvas() {
+      const width = straight.rulerPxLength + config.rulerEndPadding * 2;
+      ruler.x = clamp(ruler.x, 8, canvas.width - width - 8);
+      ruler.y = clamp(ruler.y, 8, canvas.height - config.rulerHeight - 8);
+      const snapTopY = getLineSnapTopY();
+      if (!ruler.locked && Math.abs(ruler.y - snapTopY) <= config.rulerTopSnapThreshold) {
+        ruler.y = snapTopY;
+      }
+    }
+
+    function finalizeRulerSnap() {
+      ruler.y = getLineSnapTopY();
+      ruler.x = straight.startX - config.rulerEndPadding;
+      clampRulerWithinCanvas();
+      ruler.locked = true;
+      ruler.dragging = null;
+      const lengthText = formatMmCm(straight.totalUnits);
+      statusText.textContent = "完成周长测量";
+    }
+
+    function getLineSnapTopY() {
+      const lineHalf = 3; // 蓝线线宽 6 的下边缘偏移
+      return config.lineY + lineHalf;
+    }
+
+    function mapRawToLineUnits(rawUnits, randomOffsetMm = 0) {
+      const minRaw = 95;
+      const maxRaw = 320;
+      const t = clamp((rawUnits - minRaw) / (maxRaw - minRaw), 0, 1);
+      const eased = easeInOutCubic(t);
+      // 给 23cm 留出余量，避免大量样本贴着上限
+      const mappedCm = 15 + eased * 7.6 + randomOffsetMm / 10;
+      const quantizedCm = Math.round(mappedCm * 5) / 5; // 0.2cm 步进，保持大致映射
+      return clamp(quantizedCm * 10, 150, 230);
+    }
+
+    function getLineMorphProgress() {
+      if (!lineMorph.active) return 1;
+      const elapsed = performance.now() - lineMorph.startTime;
+      const t = clamp(elapsed / config.lineMorphDuration, 0, 1);
+      if (t >= 1) lineMorph.active = false;
+      return t;
+    }
+
+    function drawTraceMorphToLine(straightenEase, unfoldEase, moveEase) {
+      if (points.length < 2) return;
+      const lineY = lineMorph.fromY + (config.lineY - lineMorph.fromY) * moveEase;
+      const lineEndX = straight.startX + straight.pxLength * unfoldEase;
+      const lineColor = mixColor("#ff4b4b", "#0f8ec8", moveEase);
+
+      const cumulative = [0];
+      let total = 0;
+      for (let i = 1; i < points.length; i++) {
+        total += distance(points[i - 1], points[i]);
+        cumulative.push(total);
+      }
+      if (total <= 0.0001) return;
+
+      ctx.save();
+      ctx.strokeStyle = lineColor;
+      ctx.lineWidth = 6;
+      ctx.lineJoin = "round";
+      ctx.lineCap = "butt";
+      ctx.beginPath();
+      for (let i = 0; i < points.length; i++) {
+        const p = points[i];
+        const ratio = cumulative[i] / total;
+        const tx = straight.startX + (lineEndX - straight.startX) * ratio;
+        const ty = lineY;
+        const x = p.x + (tx - p.x) * straightenEase;
+        const y = p.y + (ty - p.y) * straightenEase;
+        if (i === 0) {
+          ctx.moveTo(x, y);
+        } else {
+          ctx.lineTo(x, y);
+        }
+      }
+      ctx.stroke();
+
+      ctx.fillStyle = "#196f96";
+      ctx.font = "900 16px Trebuchet MS, sans-serif";
+      ctx.textAlign = "left";
+      ctx.fillText("拉直后的线段", straight.startX, config.lineY - 14);
+      ctx.restore();
+    }
+
+    function getTraceCenterY() {
+      if (points.length < 1) return leaf.y;
+      let sumY = 0;
+      for (let i = 0; i < points.length; i++) {
+        sumY += points[i].y;
+      }
+      return sumY / points.length;
+    }
+
+    function easeOutCubic(t) {
+      return 1 - Math.pow(1 - t, 3);
+    }
+
+    function easeInOutCubic(t) {
+      return t < 0.5
+        ? 4 * t * t * t
+        : 1 - Math.pow(-2 * t + 2, 3) / 2;
+    }
+
+    function mixColor(fromHex, toHex, t) {
+      const from = hexToRgb(fromHex);
+      const to = hexToRgb(toHex);
+      const r = Math.round(from.r + (to.r - from.r) * t);
+      const g = Math.round(from.g + (to.g - from.g) * t);
+      const b = Math.round(from.b + (to.b - from.b) * t);
+      return "rgb(" + r + "," + g + "," + b + ")";
+    }
+
+    function hexToRgb(hex) {
+      const raw = hex.replace("#", "");
+      const normalized = raw.length === 3
+        ? raw.split("").map((ch) => ch + ch).join("")
+        : raw;
+      return {
+        r: parseInt(normalized.slice(0, 2), 16),
+        g: parseInt(normalized.slice(2, 4), 16),
+        b: parseInt(normalized.slice(4, 6), 16)
+      };
+    }
+
+    function toCanvasPoint(event) {
+      if (event.cancelable) event.preventDefault();
+      const rect = canvas.getBoundingClientRect();
+      const e = event.touches ? event.touches[0] : event.changedTouches ? event.changedTouches[0] : event;
+      if (!e) return null;
+      return {
+        x: ((e.clientX - rect.left) / rect.width) * canvas.width,
+        y: ((e.clientY - rect.top) / rect.height) * canvas.height
+      };
+    }
+
+    function roundRectPath(context, x, y, w, h, r) {
+      context.beginPath();
+      context.moveTo(x + r, y);
+      context.arcTo(x + w, y, x + w, y + h, r);
+      context.arcTo(x + w, y + h, x, y + h, r);
+      context.arcTo(x, y + h, x, y, r);
+      context.arcTo(x, y, x + w, y, r);
+      context.closePath();
+    }
+
+    function distance(a, b) {
+      return Math.hypot(a.x - b.x, a.y - b.y);
+    }
+
+    function clamp(n, min, max) {
+      return Math.max(min, Math.min(max, n));
+    }
+
+    init();
+  </script>
+</body>
+</html>
+
+
