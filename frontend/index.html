@@ -1,0 +1,53 @@
+﻿<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>数字员工项目平台</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=ZCOOL+QingKe+HuangYou&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <div class="bg-layer"></div>
+  <main class="layout">
+    <header class="hero card">
+      <p class="eyebrow">AI STAFF + PM HUB</p>
+      <h1>多数字员工平台</h1>
+      <p class="subtitle">提需求后自动建项目，策划与制作数字员工并行接力，项目经理看板实时监控。</p>
+    </header>
+
+    <section class="composer card">
+      <h2>新建项目需求</h2>
+      <form id="projectForm" class="form-grid">
+        <label>
+          项目标题
+          <input id="title" name="title" placeholder="例如：认识周长互动课件" required />
+        </label>
+        <label>
+          需求描述
+          <textarea id="demand" name="demand" rows="5" placeholder="描述教学目标、动画要求、交互方式..." required></textarea>
+        </label>
+        <button type="submit" id="submitBtn">创建并自动运行</button>
+      </form>
+      <p id="createHint" class="hint"></p>
+    </section>
+
+    <section class="board card">
+      <div class="section-head">
+        <h2>项目看板</h2>
+        <button id="refreshBtn" class="ghost">立即刷新</button>
+      </div>
+      <div id="projectList" class="project-list"></div>
+    </section>
+
+    <section class="detail card">
+      <h2>项目详情</h2>
+      <div id="detailPanel" class="detail-panel">请选择一个项目查看执行日志。</div>
+    </section>
+  </main>
+
+  <script src="/app.js" defer></script>
+</body>
+</html>
